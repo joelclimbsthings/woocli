@@ -67,7 +67,6 @@ const operations = [
 			await $`pnpm nx build woocommerce`;
 
 			// Fix cleanup
-			console.info('clonePath', clonePath);
 			await $`sed -i 's/pnpm exec/pnpx/g' ./plugins/woocommerce/legacy/project.json`;
 		},
 		args: ['b'],
