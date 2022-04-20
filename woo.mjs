@@ -85,7 +85,7 @@ const operations = [
 			await $`ln -fs "${clonePath}/plugins/woocommerce" "${os.homedir()}/Local Sites/${site}/app/public/wp-content/plugins/woocommerce"`;
 
 			if (!branch) {
-				branch = await $`git branch --show-current`;
+				branch = String(await $`git branch --show-current`);
 			}
 
 			await $`sed -i 's/Plugin Name: WooCommerce/Plugin Name: WooCommerce (${branch.replace(
