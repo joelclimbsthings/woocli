@@ -20,13 +20,13 @@ const operations = [
 			return {
 				branch,
 				directory,
-				clonePath: `${__dirname}/${directory}`,
+				clonePath: `${process.cwd()}/${directory}`,
 			};
 		},
 	},
 	{
 		name: 'install',
-		run: async ({ clonePath = __dirname }) => {
+		run: async ({ clonePath = process.cwd() }) => {
 			cd(clonePath);
 			await $`pnpm install`;
 			await `pnpm nx composer-install woocommerce`;
@@ -35,7 +35,7 @@ const operations = [
 	},
 	{
 		name: 'build',
-		run: async ({ clonePath = __dirname }) => {
+		run: async ({ clonePath = process.cwd() }) => {
 			cd(clonePath);
 			await $`pnpm nx composer-install woocommerce && pnpm nx build woocommerce`;
 		},
@@ -43,7 +43,7 @@ const operations = [
 	},
 	{
 		name: 'watch',
-		run: async ({ clonePath = __dirname }) => {
+		run: async ({ clonePath = process.cwd() }) => {
 			cd(clonePath);
 			await $`pnpm nx build-watch woocommerce-admin`;
 		},
@@ -51,7 +51,7 @@ const operations = [
 	},
 	{
 		name: 'link',
-		run: async ({ site, clonePath = __dirname }) =>
+		run: async ({ site, clonePath = process.cwd() }) =>
 			await $`ln -fs "${clonePath}/plugins/woocommerce" "~/Local Sites/${site}/app/public/wp-content/plugins/woocommerce"`,
 		args: ['l'],
 		prep: async () =>
