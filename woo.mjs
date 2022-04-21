@@ -16,7 +16,7 @@ const operations = [
 				message: 'What branch would you like to checkout?',
 			});
 
-			const directory = branch.replace('/', '-');
+			const directory = `woocommerce_${branch.replace('/', '-')}`;
 
 			return {
 				branch,
@@ -39,7 +39,7 @@ const operations = [
 				message: 'What would you like to call your new branch?',
 			});
 
-			const directory = branch.replace('/', '-');
+			const directory = `woocommerce_${branch.replace('/', '-')}`;
 
 			return {
 				branch,
@@ -72,20 +72,12 @@ const operations = [
 		args: ['b'],
 	},
 	{
-		name: 'watch',
-		run: async ({ clonePath = process.cwd() }) => {
-			cd(clonePath);
-			await $`pnpm nx build-watch woocommerce-admin`;
-		},
-		args: ['w'],
-	},
-	{
 		name: 'link',
 		run: async ({ branch, site, clonePath = process.cwd() }) => {
 			await $`ln -fs "${clonePath}/plugins/woocommerce" "${os.homedir()}/Local Sites/${site}/app/public/wp-content/plugins/woocommerce"`;
 
 			if (!branch) {
-				branch = String(await $`git branch --show-current`);
+				branch = String(await $`git branch --show-current`).trim();
 			}
 
 			await $`sed -i 's/Plugin Name: WooCommerce/Plugin Name: WooCommerce (${branch.replace(
@@ -100,6 +92,25 @@ const operations = [
 				name: 'site',
 				message: 'Name of Local site to link?',
 			}),
+	},
+	{
+		name: 'watch',
+		run: async ({ clonePath = process.cwd() }) => {
+			cd(clonePath);
+			await $`pnpm nx build-watch woocommerce-admin`;
+		},
+		args: ['w'],
+	},
+	{
+		name: 'changelog',
+		run: async () => await $`pnpm nx changelog woocommerce`,
+	},
+	{
+		name: 'push',
+		run: async () => {
+			const branch = String(await $`git branch --show-current`).trim();
+			await $`git push origin ${branch}`;
+		},
 	},
 ];
 
