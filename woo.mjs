@@ -108,7 +108,9 @@ const operations = [
 	{
 		name: 'push',
 		run: async () => {
-			const branch = String(await $`git branch --show-current`).trim();
+			const branch = String(
+				await quiet($`git branch --show-current`)
+			).trim();
 			await $`git push origin ${branch}`;
 		},
 	},
