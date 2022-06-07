@@ -59,15 +59,18 @@ const operations = [
 	},
 	{
 		name: 'build',
-		run: async ({ clonePath = process.cwd() }) => {
+		run: async ({
+			clonePath = process.cwd(),
+			target = argv['target'] || 'woocommerce',
+		}) => {
 			cd(clonePath);
 			// Temporary fix
-			await $`sed -i 's/pnpx/pnpm exec/g' ./plugins/woocommerce/legacy/project.json`;
+			// await $`sed -i 's/pnpx/pnpm exec/g' ./plugins/woocommerce/legacy/project.json`;
 
-			await $`pnpm nx build woocommerce`;
+			await $`pnpm nx build ${target}`;
 
 			// Fix cleanup
-			await $`sed -i 's/pnpm exec/pnpx/g' ./plugins/woocommerce/legacy/project.json`;
+			// await $`sed -i 's/pnpm exec/pnpx/g' ./plugins/woocommerce/legacy/project.json`;
 		},
 		args: ['b'],
 	},
@@ -95,9 +98,12 @@ const operations = [
 	},
 	{
 		name: 'watch',
-		run: async ({ clonePath = process.cwd() }) => {
+		run: async ({
+			clonePath = process.cwd(),
+			target = argv['target'] || 'woocommerce-admin',
+		}) => {
 			cd(clonePath);
-			await $`pnpm nx build-watch woocommerce-admin`;
+			await $`pnpm nx build-watch ${target}`;
 		},
 		args: ['w'],
 	},
@@ -113,6 +119,10 @@ const operations = [
 			).trim();
 			await $`git push origin ${branch}`;
 		},
+	},
+	{
+		name: 'test',
+		run: async () => await $`pnpm nx test:watch woocommerce-admin`,
 	},
 ];
 
