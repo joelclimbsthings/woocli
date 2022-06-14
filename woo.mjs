@@ -121,8 +121,17 @@ const operations = [
 		},
 	},
 	{
-		name: 'test',
+		name: 'test:watch',
 		run: async () => await $`pnpm nx test:watch woocommerce-admin`,
+	},
+	{
+		name: 'test:php',
+		run: async () => await $`pnpm nx run woocommerce:test-unit`,
+	},
+	{
+		name: 'test:failing',
+		run: async () =>
+			await $`pnpm nx run woocommerce:test-unit --group failing`,
 	},
 ];
 
