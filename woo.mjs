@@ -76,16 +76,24 @@ const operations = [
 	{
 		name: 'link',
 		run: async ({ branch, site, clonePath = process.cwd() }) => {
+			const wooPath = `${clonePath}/plugins/woocommerce/woocommerce.php`;
+
 			await $`ln -fs "${clonePath}/plugins/woocommerce" "${os.homedir()}/Local Sites/${site}/app/public/wp-content/plugins/woocommerce"`;
 
 			if (!branch) {
 				branch = String(await $`git branch --show-current`).trim();
 			}
 
-			await $`sed -i 's/Plugin Name: WooCommerce/Plugin Name: WooCommerce (${branch.replace(
-				'/',
-				'-'
-			)})/g' ${clonePath}/plugins/woocommerce/woocommerce.php`;
+			const branchTitle = branch.replace('/', '-');
+
+			if (
+				(await nothrow($`grep -Fq "${branchTitle}" ${wooPath}`)
+					.exitCode) === 0
+			) {
+				return;
+			}
+
+			await $`sed -i 's/Plugin Name: WooCommerce/Plugin Name: WooCommerce (${branchTitle})/g' ${clonePath}/plugins/woocommerce/woocommerce.php`;
 		},
 		args: ['l'],
 		prep: async () =>
