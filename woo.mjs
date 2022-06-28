@@ -150,7 +150,7 @@ const operations = [
 		run: async () =>
 			await $`pnpm test:unit --filter=woocommerce -- --group failing`,
 	},
-];
+].map((item, index) => ({ ...item, order: index }));
 
 const toRun = [];
 
@@ -174,13 +174,15 @@ if (!toRun.length) {
 
 let config = {};
 
-for (const op of toRun) {
+const orderedToRun = toRun.sort((a, b) => a.order - b.order);
+
+for (const op of orderedToRun) {
 	if (op.prep) {
 		config = { ...config, ...(await Promise.resolve(op.prep())) };
 	}
 }
 
-for (const op of toRun) {
+for (const op of orderedToRun) {
 	try {
 		await op.run(config);
 	} catch (e) {
