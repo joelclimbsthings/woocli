@@ -3,6 +3,14 @@
 import 'zx/globals';
 import prompts from 'prompts';
 
+const parsePathsFromBranch = (branch) => {
+	const directory = `woocommerce_${branch.replace('/', '-')}`;
+	return {
+		directory,
+		clonePath: `${process.cwd()}/${directory}}`,
+	};
+};
+
 const operations = [
 	{
 		name: 'clone',
@@ -16,12 +24,9 @@ const operations = [
 				message: 'What branch would you like to checkout?',
 			});
 
-			const directory = `woocommerce_${branch.replace('/', '-')}`;
-
 			return {
 				branch,
-				directory,
-				clonePath: `${process.cwd()}/${directory}`,
+				...parsePathsFromBranch(branch),
 			};
 		},
 	},
@@ -39,12 +44,9 @@ const operations = [
 				message: 'What would you like to call your new branch?',
 			});
 
-			const directory = `woocommerce_${branch.replace('/', '-')}`;
-
 			return {
 				branch,
-				directory,
-				clonePath: `${process.cwd()}/${directory}`,
+				...parsePathsFromBranch(branch),
 			};
 		},
 	},
