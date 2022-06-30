@@ -107,7 +107,7 @@ const operations = [
 		name: 'watch',
 		run: async ({
 			clonePath = process.cwd(),
-			target = argv['target'] || '@woocommerce/admin-library',
+			target = argv['target'] || 'woocommerce/client/admin',
 		}) => {
 			cd(clonePath);
 
@@ -117,7 +117,10 @@ const operations = [
 	},
 	{
 		name: 'changelog',
-		run: async () => await $`pnpm changelog --filter=woocommerce add`,
+		run: async ({ clonePath = process.cwd() }) => {
+			cd(`${clonePath}/plugins/woocommerce`);
+			await $`./vendor/bin/changelogger add`;
+		},
 	},
 	{
 		name: 'push',
@@ -131,13 +134,14 @@ const operations = [
 	{
 		name: 'test:watch',
 		run: async () =>
-			await $`pnpm test:watch --filter=@woocommerce/admin-library`,
+			await $`pnpm test:watch --filter=woocommerce/client/admin`,
 	},
 	{
 		name: 'test:prepare',
 		run: async ({ clonePath = process.cwd() }) => {
 			cd(clonePath);
 			await $`docker run --rm --name woocommerce_test_db -p 3307:3306 -e MYSQL_ROOT_PASSWORD=woocommerce_test_password -d mysql:5.7.33`;
+			await $`sleep 5`;
 			await $`./plugins/woocommerce/tests/bin/install.sh woocommerce_tests root woocommerce_test_password 0.0.0.0:3307`;
 		},
 	},
