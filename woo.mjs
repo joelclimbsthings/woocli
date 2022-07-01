@@ -11,8 +11,6 @@ const parsePathsFromBranch = (branch) => {
 	};
 };
 
-const parseSiteNameFromBranch = (branch) => branch.replace(/[/-]/g, '');
-
 const operations = [
 	{
 		name: 'clone',
