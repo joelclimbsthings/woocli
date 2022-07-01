@@ -7,7 +7,7 @@ const parsePathsFromBranch = (branch) => {
 	const directory = `woocommerce_${branch.replace('/', '-')}`;
 	return {
 		directory,
-		clonePath: `${process.cwd()}/${directory}}`,
+		clonePath: `${process.cwd()}/${directory}`,
 	};
 };
 
