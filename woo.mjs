@@ -11,18 +11,24 @@ const parsePathsFromBranch = (branch) => {
 	};
 };
 
+const parseSiteNameFromBranch = (branch) => branch.replace(/[/-]/g, '');
+
 const operations = [
 	{
 		name: 'clone',
 		run: async ({ branch, directory }) =>
 			await $`git clone -b ${branch} git@github.com:woocommerce/woocommerce.git ${directory}`,
 		prep: async () => {
-			const { branch } = await prompts({
-				type: 'text',
-				name: 'branch',
-				initial: 'trunk',
-				message: 'What branch would you like to checkout?',
-			});
+			const branch = argv['branch']
+				? argv['branch']
+				: (
+						await prompts({
+							type: 'text',
+							name: 'branch',
+							initial: 'trunk',
+							message: 'What branch would you like to checkout?',
+						})
+				  ).branch;
 
 			return {
 				branch,
@@ -38,11 +44,16 @@ const operations = [
 			await $`git checkout -b ${branch}`;
 		},
 		prep: async () => {
-			const { branch } = await prompts({
-				type: 'text',
-				name: 'branch',
-				message: 'What would you like to call your new branch?',
-			});
+			const branch = argv['branch']
+				? argv['branch']
+				: (
+						await prompts({
+							type: 'text',
+							name: 'branch',
+							message:
+								'What would you like to call your new branch?',
+						})
+				  ).branch;
 
 			return {
 				branch,
@@ -99,11 +110,13 @@ const operations = [
 		},
 		args: ['l'],
 		prep: async () =>
-			await prompts({
-				type: 'text',
-				name: 'site',
-				message: 'Name of Local site to link?',
-			}),
+			argv['branch']
+				? { site: argv['branch'].replace(/[/-]/g, '') }
+				: await prompts({
+						type: 'text',
+						name: 'site',
+						message: 'Name of Local site to link?',
+				  }),
 	},
 	{
 		name: 'watch',
