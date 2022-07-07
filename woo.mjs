@@ -3,7 +3,7 @@
 import 'zx/globals';
 import prompts from 'prompts';
 import { chalk } from 'zx';
-import { createLogger } from './createLogger.mjs';
+import { createLogger } from './util/createLogger.mjs';
 
 const logger = createLogger('wooCli');
 
@@ -170,7 +170,7 @@ const operations = [
 		run: async ({ clonePath = process.cwd() }) => {
 			cd(clonePath);
 			await $`docker run --rm --name woocommerce_test_db -p 3307:3306 -e MYSQL_ROOT_PASSWORD=woocommerce_test_password -d mysql:5.7.33`;
-			await $`sleep 5`;
+			await quiet($`sleep 5`);
 			await $`./plugins/woocommerce/tests/bin/install.sh woocommerce_tests root woocommerce_test_password 0.0.0.0:3307`;
 		},
 	},
