@@ -2,6 +2,10 @@
 
 import 'zx/globals';
 import prompts from 'prompts';
+import { chalk } from 'zx';
+import { createLogger } from './createLogger.mjs';
+
+const logger = createLogger('wooCli');
 
 const parsePathsFromBranch = (branch) => {
 	const directory = `woocommerce_${branch.replace('/', '-')}`;
@@ -89,32 +93,44 @@ const operations = [
 		run: async ({ branch, site, clonePath = process.cwd() }) => {
 			const wooPath = `${clonePath}/plugins/woocommerce/woocommerce.php`;
 
-			await $`ln -fs "${clonePath}/plugins/woocommerce" "${os.homedir()}/Local Sites/${site}/app/public/wp-content/plugins/woocommerce"`;
+			await quiet(
+				$`ln -fs "${clonePath}/plugins/woocommerce" "${os.homedir()}/Local Sites/${site}/app/public/wp-content/plugins/woocommerce"`
+			);
 
 			if (!branch) {
-				branch = String(await $`git branch --show-current`).trim();
+				branch = String(
+					await quiet($`git branch --show-current`)
+				).trim();
 			}
 
 			const branchTitle = branch.replace('/', '-');
 
 			if (
-				(await nothrow($`grep -Fq "${branchTitle}" ${wooPath}`)
+				(await quiet(nothrow($`grep -Fq "${branchTitle}" ${wooPath}`))
 					.exitCode) === 0
 			) {
 				return;
 			}
 
-			await $`sed -i 's/Plugin Name: WooCommerce/Plugin Name: WooCommerce (${branchTitle})/g' ${clonePath}/plugins/woocommerce/woocommerce.php`;
+			await quiet(
+				$`sed -i 's/Plugin Name: WooCommerce/Plugin Name: WooCommerce (${branchTitle})/g' ${clonePath}/plugins/woocommerce/woocommerce.php`
+			);
 		},
 		args: ['l'],
 		prep: async () =>
 			argv['branch']
-				? { site: argv['branch'].replace(/[/-]/g, '') }
+				? { site: argv['branch'].replace(/[^a-z0-9]/gi, '') }
 				: await prompts({
 						type: 'text',
 						name: 'site',
 						message: 'Name of Local site to link?',
 				  }),
+		after: ({ site }) =>
+			logger.info(
+				`${chalk.green(
+					'Successfully linked to Local site'
+				)} ${chalk.bold(site)}`
+			),
 	},
 	{
 		name: 'watch',
@@ -150,7 +166,7 @@ const operations = [
 			await $`pnpm test:watch --filter=woocommerce/client/admin`,
 	},
 	{
-		name: 'test:prepare',
+		name: 'test:php:prepare',
 		run: async ({ clonePath = process.cwd() }) => {
 			cd(clonePath);
 			await $`docker run --rm --name woocommerce_test_db -p 3307:3306 -e MYSQL_ROOT_PASSWORD=woocommerce_test_password -d mysql:5.7.33`;
@@ -163,18 +179,29 @@ const operations = [
 		run: async () => await $`pnpm test:unit --filter=woocommerce`,
 	},
 	{
-		name: 'test:failing',
+		name: 'test:php:failing',
 		run: async () =>
 			await $`pnpm test:unit --filter=woocommerce -- --group failing`,
 	},
-].map((item, index) => ({ ...item, order: index }));
+].map((item, index) => ({
+	...item,
+	order: index,
+	after: item.after
+		? item.after
+		: () =>
+				logger.info(
+					`${chalk.green(
+						'Successfully completed operation'
+					)} ${chalk.bold(item.name)}`
+				),
+}));
 
 const toRun = [];
 
 if (argv._[1]) {
 	const initial = operations.find((op) => op.name === argv._[1]);
 	if (!initial) {
-		console.warn(`"${argv._[1]}" is an invalid operation`);
+		logger.warn(`"${argv._[1]}" is an invalid operation`);
 		process.exit(1);
 	}
 	toRun.push(operations.find((op) => op.name === argv._[1]));
@@ -185,7 +212,7 @@ toRun.push(
 );
 
 if (!toRun.length) {
-	console.warn('Nothing to do');
+	logger.warn('Nothing to do');
 	process.exit(0);
 }
 
@@ -202,10 +229,9 @@ for (const op of orderedToRun) {
 for (const op of orderedToRun) {
 	try {
 		await op.run(config);
+		op.after(config);
 	} catch (e) {
-		console.warn(
-			chalk.red(`Unable to run operation ${op.name}`, e.message)
-		);
+		logger.warn(chalk.red(`Unable to run operation ${op.name}`, e.message));
 		break;
 	}
 }
