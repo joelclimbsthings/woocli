@@ -2,7 +2,7 @@
 
 import 'zx/globals';
 import prompts from 'prompts';
-import { chalk } from 'zx';
+import { chalk, quiet } from 'zx';
 import { createLogger } from './util/createLogger.mjs';
 
 const logger = createLogger('wooCli');
@@ -78,13 +78,8 @@ const operations = [
 			target = argv['target'] || 'woocommerce',
 		}) => {
 			cd(clonePath);
-			// Temporary fix
-			// await $`sed -i 's/pnpx/pnpm exec/g' ./plugins/woocommerce/legacy/project.json`;
 
-			await $`pnpm exec turbo run build --filter=${target}`;
-
-			// Fix cleanup
-			// await $`sed -i 's/pnpm exec/pnpx/g' ./plugins/woocommerce/legacy/project.json`;
+			await $`pnpm -- turbo run build --filter=${target}`;
 		},
 		args: ['b'],
 	},
@@ -161,7 +156,12 @@ const operations = [
 		},
 	},
 	{
-		name: 'test:watch',
+		name: 'test:js',
+		run: async () =>
+			await $`pnpm test:client --filter=woocommerce/client/admin`,
+	},
+	{
+		name: 'test:js:watch',
 		run: async () =>
 			await $`pnpm test:watch --filter=woocommerce/client/admin`,
 	},
@@ -169,19 +169,45 @@ const operations = [
 		name: 'test:php:prepare',
 		run: async ({ clonePath = process.cwd() }) => {
 			cd(clonePath);
+			await quiet(nothrow($`rm -rf /tmp/wordpress-tests-lib`));
+
 			await $`docker run --rm --name woocommerce_test_db -p 3307:3306 -e MYSQL_ROOT_PASSWORD=woocommerce_test_password -d mysql:5.7.33`;
 			await quiet($`sleep 5`);
 			await $`./plugins/woocommerce/tests/bin/install.sh woocommerce_tests root woocommerce_test_password 0.0.0.0:3307`;
 		},
+		_isReady: async () => {
+			return quiet($`docker ps`).then((result) =>
+				Boolean(~result.stdout.indexOf('woocommerce_test_db'))
+			);
+		},
 	},
 	{
 		name: 'test:php',
-		run: async () => await $`pnpm test:unit --filter=woocommerce`,
+		run: async (...args) => {
+			const prepareOp = operations.get('test:php:prepare');
+
+			const isReady = await prepareOp._isReady();
+
+			if (!isReady) {
+				await prepareOp.run(...args);
+			}
+
+			await $`pnpm test:unit --filter=woocommerce`;
+		},
 	},
 	{
 		name: 'test:php:failing',
-		run: async () =>
-			await $`pnpm test:unit --filter=woocommerce -- --group failing`,
+		run: async () => {
+			const prepareOp = operations.get('test:php:prepare');
+
+			const isReady = await prepareOp._isReady();
+
+			if (!isReady) {
+				await prepareOp.run(...args);
+			}
+
+			await $`pnpm test:unit --filter=woocommerce -- --group failing`;
+		},
 	},
 ].map((item, index) => ({
 	...item,
@@ -195,6 +221,8 @@ const operations = [
 					)} ${chalk.bold(item.name)}`
 				),
 }));
+
+operations.get = (name) => operations.find((item) => item.name === name);
 
 const toRun = [];
 
@@ -218,7 +246,10 @@ if (!toRun.length) {
 
 let config = {};
 
-const orderedToRun = toRun.sort((a, b) => a.order - b.order);
+// Remove any duplicates and order
+const orderedToRun = [
+	...new Map(toRun.map((item) => [item['name'], item])).values(),
+].sort((a, b) => a.order - b.order);
 
 for (const op of orderedToRun) {
 	if (op.prep) {
@@ -228,8 +259,10 @@ for (const op of orderedToRun) {
 
 for (const op of orderedToRun) {
 	try {
+		console.time(op.name);
 		await op.run(config);
 		op.after(config);
+		console.timeEnd(op.name);
 	} catch (e) {
 		logger.warn(chalk.red(`Unable to run operation ${op.name}`, e.message));
 		break;
