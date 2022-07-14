@@ -2010,7 +2010,7 @@ globby@^13.1.2:
 
 graceful-fs@^4.1.6, graceful-fs@^4.2.0:
   version "4.2.10"
-  resolved "https://registry.npmjs.org/graceful-fs/-/graceful-fs-4.2.10.tgz"
+  resolved "https://registry.yarnpkg.com/graceful-fs/-/graceful-fs-4.2.10.tgz#147d3a006da4ca3ce14728c7aefc287c367d7a6c"
   integrity sha512-9ByhssR2fPVsNZj478qUUbKfmL0+t5BDVyjShtyZZLiK7ZDAArFFfopyOTj0M05wE2tJPisA4iTnnXl2YoPvOA==
 
 has-bigints@^1.0.1, has-bigints@^1.0.2:
@@ -2219,7 +2219,7 @@ json5@^2.2.1:
 
 jsonfile@^6.0.1:
   version "6.1.0"
-  resolved "https://registry.npmjs.org/jsonfile/-/jsonfile-6.1.0.tgz"
+  resolved "https://registry.yarnpkg.com/jsonfile/-/jsonfile-6.1.0.tgz#bc55b2634793c679ec6403094eb13698a6ec0aae"
   integrity sha512-5dgndWOriYSm5cnYaJNhalLNDKOqFwyDB/rr1E9ZsGciGvKPs8R2xYGCacuf3z6K1YKDz182fd+fY3cn3pMqXQ==
   dependencies:
     universalify "^2.0.0"
@@ -2912,7 +2912,7 @@ unicode-property-aliases-ecmascript@^2.0.0:
 
 universalify@^2.0.0:
   version "2.0.0"
-  resolved "https://registry.npmjs.org/universalify/-/universalify-2.0.0.tgz"
+  resolved "https://registry.yarnpkg.com/universalify/-/universalify-2.0.0.tgz#75a4984efedc4b08975c5aeb73f530d02df25717"
   integrity sha512-hAZsKq7Yy11Zu1DE0OzWjw7nnLZmJZYTDZZyEFHZdUhV8FkH5MCfoU1XMaxXovpyW5nq5scPqq0ZDP9Zyl04oQ==
 
 update-browserslist-db@^1.0.4:
@@ -2966,7 +2966,7 @@ yaml@^2.1.1:
   resolved "https://registry.yarnpkg.com/yaml/-/yaml-2.1.1.tgz#1e06fb4ca46e60d9da07e4f786ea370ed3c3cfec"
   integrity sha512-o96x3OPo8GjWeSLF+wOAbrPfhFOGY0W00GNaxCDv+9hkcDJEnev1yh8S7pgHF0ik6zc8sQLuL8hjHjJULZp8bw==
 
-zx@^7.0.4:
+zx@^7.0.7:
   version "7.0.7"
   resolved "https://registry.yarnpkg.com/zx/-/zx-7.0.7.tgz#e812b3bfecd49304fd6a415deeae16335edf7d5e"
   integrity sha512-cWF5cWqqrTVxgEPmQ8w/LvUXOK3rJTdgC+Tt1nz113+YncNIO0X6UXgCY72UfE8Az/lwOubbEJARXpQ+7RiM9g==
