@@ -29,9 +29,8 @@ npm install zx@latest -g
 
 3. (Optional) Add an alias to your `.bashrc` file.
   ```sh
-  alias woo=woo.mjs
+  alias woo=zx woo.mjs
   ```
-
 
 <!-- USAGE EXAMPLES -->
 ## Usage
