@@ -217,7 +217,7 @@ const operations = [
 		: () =>
 				logger.info(
 					`${chalk.green(
-						'Successfully completed operation'
+						'Successfully completed operation.'
 					)} ${chalk.bold(item.name)}`
 				),
 }));
