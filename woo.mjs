@@ -79,7 +79,7 @@ const operations = [
 		}) => {
 			cd(clonePath);
 
-			await $`pnpm run build --filter='${target}'`;
+			await $`pnpm --filter=${target} run build`;
 		},
 		args: ['b'],
 	},
@@ -135,7 +135,7 @@ const operations = [
 		}) => {
 			cd(clonePath);
 
-			await $`pnpm run start --filter='${target}'`;
+			await $`pnpm --filter=${target} run start`;
 		},
 		args: ['w'],
 	},
@@ -158,12 +158,12 @@ const operations = [
 	{
 		name: 'test:js',
 		run: async () =>
-			await $`pnpm run test:client --filter='woocommerce/client/admin'`,
+			await $`pnpm --filter=woocommerce/client/admin run test:client`,
 	},
 	{
 		name: 'test:js:watch',
 		run: async () =>
-			await $`pnpm run test:watch --filter='woocommerce/client/admin'`,
+			await $`pnpm --filter=woocommerce/client/admin run test:watch`,
 	},
 	{
 		name: 'test:php:prepare',
@@ -192,7 +192,7 @@ const operations = [
 				await prepareOp.run(...args);
 			}
 
-			await $`pnpm run test:unit --filter='woocommerce'`;
+			await $`pnpm --filter=woocommerce run test:unit`;
 		},
 	},
 	{
@@ -206,7 +206,14 @@ const operations = [
 				await prepareOp.run(...args);
 			}
 
-			await $`pnpm run test:unit --filter='woocommerce' -- --group failing`;
+			await $`pnpm --filter=woocommerce run test:unit -- --group failing`;
+		},
+	},
+	{
+		name: 'storybook',
+		run: async () => {
+			await $`pnpm --filter=@woocommerce/storybook build-storybook`;
+			await $`pnpm --filter=@woocommerce/storybook storybook`;
 		},
 	},
 ].map((item, index) => ({
