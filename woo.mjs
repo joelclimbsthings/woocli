@@ -41,8 +41,10 @@ const operations = [
 	{
 		name: 'create',
 		run: async ({ branch, directory, clonePath }) => {
-			await $`git clone git@github.com:woocommerce/woocommerce.git ${directory}`;
-			cd(clonePath);
+			await $`git clone -b ${
+				argv['base'] || 'trunk'
+			} git@github.com:woocommerce/woocommerce.git ${directory}`,
+				cd(clonePath);
 			await $`git checkout -b ${branch}`;
 		},
 		prep: async () => {
@@ -162,8 +164,8 @@ const operations = [
 	},
 	{
 		name: 'test:js:watch',
-		run: async () =>
-			await $`pnpm --filter=woocommerce/client/admin run test:watch`,
+		run: async ({ path = argv['path'] || '' }) =>
+			await $`pnpm --filter=@woocommerce/components run test -- --watch ${path}`,
 	},
 	{
 		name: 'test:php:prepare',
@@ -224,7 +226,7 @@ const operations = [
 		: () =>
 				logger.info(
 					`${chalk.green(
-						'Successfully completed operation.'
+						'Successfully completed operation'
 					)} ${chalk.bold(item.name)}`
 				),
 }));
