@@ -154,7 +154,13 @@ const operations = [
 			const branch = String(
 				await quiet($`git branch --show-current`)
 			).trim();
+			if (argv['pop']) {
+				await quiet($`git stash`);
+			}
 			await $`git push origin ${branch}`;
+			if (argv['pop']) {
+				await quiet($`git stash pop`);
+			}
 		},
 	},
 	{
@@ -165,7 +171,7 @@ const operations = [
 	{
 		name: 'test:js:watch',
 		run: async ({ path = argv['path'] || '' }) =>
-			await $`pnpm --filter=@woocommerce/components run test -- --watch ${path}`,
+			await $`pnpm --filter=woocommerce/client/admin run test -- --watch ${path}`,
 	},
 	{
 		name: 'test:php:prepare',
