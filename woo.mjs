@@ -236,6 +236,14 @@ const operations = [
 			await $`pnpm --filter=@woocommerce/storybook storybook`;
 		},
 	},
+	{
+		name: 'pnpm-reset',
+		run: async () => {
+			//await $`git clean -fdx`;
+			await $`pnpm store prune`;
+			await $`rm -fr "$(pnpm store path)"`;
+		},
+	},
 ].map((item, index) => ({
 	...item,
 	order: index,
