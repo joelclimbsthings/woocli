@@ -177,8 +177,8 @@ const operations = [
 	},
 	{
 		name: 'test:js',
-		run: async () =>
-			await $`pnpm --filter=woocommerce/client/admin run test:client`,
+		run: async ({ path = argv['path'] || '' }) =>
+			await $`pnpm --filter=woocommerce/client/admin run test:client ${path}`,
 	},
 	{
 		name: 'test:js:watch',
