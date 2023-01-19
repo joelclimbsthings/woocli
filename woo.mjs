@@ -151,16 +151,28 @@ const operations = [
 	{
 		name: 'push',
 		run: async () => {
+			const conditionalPop = async () => {
+				if (argv['pop']) {
+					await quiet($`git stash pop`);
+				}
+			};
+
 			const branch = String(
 				await quiet($`git branch --show-current`)
 			).trim();
+
 			if (argv['pop']) {
 				await quiet($`git stash`);
 			}
-			await $`git push origin ${branch}`;
-			if (argv['pop']) {
-				await quiet($`git stash pop`);
+
+			try {
+				await $`git push origin ${branch}`;
+			} catch (e) {
+				await conditionalPop();
+				throw new Error(e);
 			}
+
+			await conditionalPop();
 		},
 	},
 	{
