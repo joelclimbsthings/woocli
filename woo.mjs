@@ -116,7 +116,7 @@ const operations = [
 		args: ['l'],
 		prep: async () =>
 			argv['branch']
-				? { site: argv['branch'].replace(/[^a-z0-9]/gi, '') }
+				? { site: argv['branch'].replace(/[^a-z0-9-]/gi, '') }
 				: await prompts({
 						type: 'text',
 						name: 'site',
@@ -166,7 +166,7 @@ const operations = [
 			}
 
 			try {
-				await $`git push origin ${branch}`;
+				await $`git push -u origin ${branch}`;
 			} catch (e) {
 				await conditionalPop();
 				throw new Error(e);
