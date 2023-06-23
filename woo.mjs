@@ -15,6 +15,14 @@ const parsePathsFromBranch = (branch) => {
 	};
 };
 
+const getCurrentBranch = async () => {
+	return String(await quiet($`git branch --show-current`)).trim();
+};
+
+const getLocalSiteFromBranch = (branch) => {
+	return branch.replace(/[^a-z0-9-]/gi, '');
+};
+
 const operations = [
 	{
 		name: 'clone',
@@ -46,6 +54,7 @@ const operations = [
 			} git@github.com:woocommerce/woocommerce.git ${directory}`,
 				cd(clonePath);
 			await $`git checkout -b ${branch}`;
+			await $`git push -u origin ${branch} --no-verify`;
 		},
 		prep: async () => {
 			const branch = argv['branch']
@@ -63,6 +72,14 @@ const operations = [
 				branch,
 				...parsePathsFromBranch(branch),
 			};
+		},
+	},
+	{
+		name: 'clean',
+		run: async ({ clonePath = process.cwd() }) => {
+			cd(clonePath);
+
+			await $`pnpm run clean`;
 		},
 	},
 	{
@@ -86,18 +103,31 @@ const operations = [
 		args: ['b'],
 	},
 	{
+		name: 'linkbasic',
+		run: async ({ site, clonePath = process.cwd() }) => {
+			await quiet(
+				$`ln -fs "${clonePath}" "${os.homedir()}/Local Sites/${site}/app/public/wp-content/plugins/${clonePath
+					.split('/')
+					.pop()}"`
+			);
+		},
+		prep: async () => operations.get('link').prep(),
+		after: ({ site }) => operations.get('link').after({ site }),
+	},
+	{
 		name: 'link',
 		run: async ({ branch, site, clonePath = process.cwd() }) => {
 			const wooPath = `${clonePath}/plugins/woocommerce/woocommerce.php`;
 
-			await quiet(
-				$`ln -fs "${clonePath}/plugins/woocommerce" "${os.homedir()}/Local Sites/${site}/app/public/wp-content/plugins/woocommerce"`
-			);
+			const linkOp = operations.get('linkbasic');
+
+			linkOp.run({
+				site,
+				clonePath: `${clonePath}/plugins/woocommerce`,
+			});
 
 			if (!branch) {
-				branch = String(
-					await quiet($`git branch --show-current`)
-				).trim();
+				branch = await getCurrentBranch();
 			}
 
 			const branchTitle = branch.replace('/', '-');
@@ -115,8 +145,8 @@ const operations = [
 		},
 		args: ['l'],
 		prep: async () =>
-			argv['branch']
-				? { site: argv['branch'].replace(/[^a-z0-9-]/gi, '') }
+			argv.branch
+				? { site: getLocalSiteFromBranch(argv.branch) }
 				: await prompts({
 						type: 'text',
 						name: 'site',
@@ -157,16 +187,14 @@ const operations = [
 				}
 			};
 
-			const branch = String(
-				await quiet($`git branch --show-current`)
-			).trim();
+			const branch = await getCurrentBranch();
 
 			if (argv['pop']) {
 				await quiet($`git stash`);
 			}
 
 			try {
-				await $`git push -u origin ${branch}`;
+				await $`git push origin ${branch}`;
 			} catch (e) {
 				await conditionalPop();
 				throw new Error(e);
@@ -242,6 +270,15 @@ const operations = [
 			//await $`git clean -fdx`;
 			await $`pnpm store prune`;
 			await $`rm -fr "$(pnpm store path)"`;
+		},
+	},
+	{
+		name: 'tail-errors',
+		run: async ({ branch }) => {
+			const site = getLocalSiteFromBranch(
+				branch || (await getCurrentBranch())
+			);
+			await $`tail -n0 -f "${os.homedir()}/Local Sites/${site}/app/public/wp-content/debug.log"`;
 		},
 	},
 ].map((item, index) => ({
