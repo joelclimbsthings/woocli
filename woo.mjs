@@ -7,6 +7,8 @@ import { createLogger } from './util/createLogger.mjs';
 
 const logger = createLogger('wooCli');
 
+process.env.FORCE_COLOR = '1';
+
 const parsePathsFromBranch = (branch) => {
 	const directory = `woocommerce_${branch.replace('/', '-')}`;
 	return {
