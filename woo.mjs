@@ -96,7 +96,7 @@ const operations = [
 		name: 'build',
 		run: async ({
 			clonePath = process.cwd(),
-			target = argv['target'] || 'woocommerce',
+			target = argv['target'] || '@woocommerce/plugin-woocommerce',
 		}) => {
 			cd(clonePath);
 
