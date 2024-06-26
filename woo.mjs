@@ -4,32 +4,84 @@ import 'zx/globals';
 import prompts from 'prompts';
 import { chalk, quiet } from 'zx';
 import { createLogger } from './util/createLogger.mjs';
+import { getComposeTemplate } from './util/getComposeTemplate.mjs';
 
 const logger = createLogger('wooCli');
 
 process.env.FORCE_COLOR = '1';
 
-const parsePathsFromBranch = (branch) => {
-	const directory = `woocommerce_${branch.replace('/', '-')}`;
-	return {
-		directory,
-		clonePath: `${process.cwd()}/${directory}`,
-	};
+const PATH_FOR_WP = `${os.homedir()}/sites/wp`;
+const PATH_FOR_WOOMONO = `${os.homedir()}/sites/woomono`;
+const PATH_FOR_BLUEPRINTS = `${os.homedir()}/sites/blueprints`;
+const DEFAULT_BLUEPRINT = `blueprint-WP-65`;
+
+const simplifyToPath = (branch) => {
+	return branch
+		.replace('/', '-')
+		.replace('_', '-')
+		.replace(/[^a-z0-9-]/gi, '');
 };
+
+const parsePathsFromBranch = (branch) => ({
+	clonePath: `${PATH_FOR_WOOMONO}/${simplifyToPath(branch)}`,
+});
 
 const getCurrentBranch = async () => {
 	return String(await quiet($`git branch --show-current`)).trim();
 };
 
-const getLocalSiteFromBranch = (branch) => {
-	return branch.replace(/[^a-z0-9-]/gi, '');
+const siteNameFromWP = () => {
+	if (!process.cwd().includes(PATH_FOR_WP)) {
+		return null;
+	}
+	const cwdParts = process.cwd().split('/');
+	const parentDir = PATH_FOR_WP.split('/').pop();
+	const siteNameIndex = cwdParts.indexOf(parentDir) + 1;
+	return cwdParts[siteNameIndex];
 };
 
 const operations = [
 	{
+		name: 'site',
+		run: async ({ blueprint, siteName }) => {
+			const sitePath = `${PATH_FOR_WP}/${siteName}`;
+
+			await $`cp -r ${PATH_FOR_BLUEPRINTS}/${blueprint} ${sitePath}`;
+
+			cd(sitePath);
+
+			await $`ddev config --project-name=${siteName}`;
+			await $`ddev import-db --file=db_export.sql.gz`;
+		},
+		prep: async () => {
+			const blueprint = argv['blueprint']
+				? argv['blueprint']
+				: DEFAULT_BLUEPRINT;
+
+			const siteName = argv['site-name']
+				? simplifyToPath(argv['site-name'])
+				: argv['branch']
+				? simplifyToPath(argv['branch'])
+				: (
+						await prompts({
+							type: 'text',
+							name: 'site',
+							initial: 'trunk',
+							message: 'What would you like to call your site?',
+						})
+				  ).site;
+
+			return {
+				blueprint,
+				siteName,
+			};
+		},
+		args: ['s'],
+	},
+	{
 		name: 'clone',
-		run: async ({ branch, directory }) =>
-			await $`git clone -b ${branch} git@github.com:woocommerce/woocommerce.git ${directory}`,
+		run: async ({ branch, clonePath }) =>
+			await $`git clone -b ${branch} git@github.com:woocommerce/woocommerce.git ${clonePath}`,
 		prep: async () => {
 			const branch = argv['branch']
 				? argv['branch']
@@ -50,11 +102,12 @@ const operations = [
 	},
 	{
 		name: 'create',
-		run: async ({ branch, directory, clonePath }) => {
+		run: async ({ branch, clonePath }) => {
 			await $`git clone -b ${
 				argv['base'] || 'trunk'
-			} git@github.com:woocommerce/woocommerce.git ${directory}`,
-				cd(clonePath);
+			} git@github.com:woocommerce/woocommerce.git ${clonePath}`;
+
+			cd(clonePath);
 			await $`git checkout -b ${branch}`;
 			await $`git push -u origin ${branch} --no-verify`;
 		},
@@ -106,25 +159,28 @@ const operations = [
 	},
 	{
 		name: 'linkbasic',
-		run: async ({ site, clonePath = process.cwd() }) => {
+		run: async ({ siteName, clonePath = process.cwd() }) => {
 			await quiet(
-				$`ln -fs "${clonePath}" "${os.homedir()}/Local Sites/${site}/app/public/wp-content/plugins/${clonePath
-					.split('/')
-					.pop()}"`
+				$`echo ${getComposeTemplate(
+					clonePath
+				)} > "${PATH_FOR_WP}/${siteName}/.ddev/docker-compose.mounts.yaml"`
 			);
+
+			cd(`${PATH_FOR_WP}/${siteName}`);
+			await $`ddev restart`;
 		},
 		prep: async () => operations.get('link').prep(),
-		after: ({ site }) => operations.get('link').after({ site }),
+		after: ({ siteName }) => operations.get('link').after({ siteName }),
 	},
 	{
 		name: 'link',
-		run: async ({ branch, site, clonePath = process.cwd() }) => {
+		run: async ({ branch, siteName, clonePath = process.cwd() }) => {
 			const wooPath = `${clonePath}/plugins/woocommerce/woocommerce.php`;
 
 			const linkOp = operations.get('linkbasic');
 
 			linkOp.run({
-				site,
+				siteName,
 				clonePath: `${clonePath}/plugins/woocommerce`,
 			});
 
@@ -146,19 +202,29 @@ const operations = [
 			);
 		},
 		args: ['l'],
-		prep: async () =>
-			argv.branch
-				? { site: getLocalSiteFromBranch(argv.branch) }
-				: await prompts({
-						type: 'text',
-						name: 'site',
-						message: 'Name of Local site to link?',
-				  }),
-		after: ({ site }) =>
+		prep: async () => {
+			const siteName = argv['branch']
+				? simplifyToPath(argv['branch'])
+				: argv['site-name']
+				? simplifyToPath(argv['site-name'])
+				: (
+						await prompts({
+							type: 'text',
+							name: 'site',
+							initial: 'trunk',
+							message: 'What would you like to call your site?',
+						})
+				  ).site;
+
+			return {
+				siteName,
+			};
+		},
+		after: ({ siteName }) =>
 			logger.info(
-				`${chalk.green(
-					'Successfully linked to Local site'
-				)} ${chalk.bold(site)}`
+				`${chalk.green('Successfully linked to site')} ${chalk.bold(
+					siteName
+				)}`
 			),
 	},
 	{
@@ -242,7 +308,7 @@ const operations = [
 				await prepareOp.run(...args);
 			}
 
-			await $`pnpm --filter=woocommerce run test:unit`;
+			await $`pnpm --filter=@woocommerce/plugin-woocommerce run test:unit`;
 		},
 	},
 	{
@@ -277,10 +343,11 @@ const operations = [
 	{
 		name: 'tail-errors',
 		run: async ({ branch }) => {
-			const site = getLocalSiteFromBranch(
-				branch || (await getCurrentBranch())
-			);
-			await $`tail -n0 -f "${os.homedir()}/Local Sites/${site}/app/public/wp-content/debug.log"`;
+			const siteName = process.cwd().includes(PATH_FOR_WP)
+				? siteNameFromWP()
+				: simplifyToPath(branch || (await getCurrentBranch()));
+
+			await $`tail -n0 -f "${PATH_FOR_WP}/${siteName}/wp-content/debug.log"`;
 		},
 	},
 ].map((item, index) => ({
