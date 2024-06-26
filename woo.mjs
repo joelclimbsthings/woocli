@@ -23,12 +23,21 @@ const simplifyToPath = (branch) => {
 };
 
 const parsePathsFromBranch = (branch) => ({
-	directory,
 	clonePath: `${PATH_FOR_WOOMONO}/${simplifyToPath(branch)}`,
 });
 
 const getCurrentBranch = async () => {
 	return String(await quiet($`git branch --show-current`)).trim();
+};
+
+const siteNameFromWP = () => {
+	if (!process.cwd().includes(PATH_FOR_WP)) {
+		return null;
+	}
+	const cwdParts = process.cwd().split('/');
+	const parentDir = PATH_FOR_WP.split('/').pop();
+	const siteNameIndex = cwdParts.indexOf(parentDir) + 1;
+	return cwdParts[siteNameIndex];
 };
 
 const operations = [
@@ -42,7 +51,6 @@ const operations = [
 			cd(sitePath);
 
 			await $`ddev config --project-name=${siteName}`;
-			await $`ddev start`;
 			await $`ddev import-db --file=db_export.sql.gz`;
 		},
 		prep: async () => {
@@ -50,10 +58,10 @@ const operations = [
 				? argv['blueprint']
 				: DEFAULT_BLUEPRINT;
 
-			const siteName = argv['branch']
+			const siteName = argv['site-name']
+				? simplifyToPath(argv['site-name'])
+				: argv['branch']
 				? simplifyToPath(argv['branch'])
-				: argv['site']
-				? simplifyToPath(argv['site'])
 				: (
 						await prompts({
 							type: 'text',
@@ -157,6 +165,9 @@ const operations = [
 					clonePath
 				)} > "${PATH_FOR_WP}/${siteName}/.ddev/docker-compose.mounts.yaml"`
 			);
+
+			cd(`${PATH_FOR_WP}/${siteName}`);
+			await $`ddev restart`;
 		},
 		prep: async () => operations.get('link').prep(),
 		after: ({ siteName }) => operations.get('link').after({ siteName }),
@@ -194,8 +205,8 @@ const operations = [
 		prep: async () => {
 			const siteName = argv['branch']
 				? simplifyToPath(argv['branch'])
-				: argv['site']
-				? simplifyToPath(argv['site'])
+				: argv['site-name']
+				? simplifyToPath(argv['site-name'])
 				: (
 						await prompts({
 							type: 'text',
@@ -297,7 +308,7 @@ const operations = [
 				await prepareOp.run(...args);
 			}
 
-			await $`pnpm --filter=woocommerce run test:unit`;
+			await $`pnpm --filter=@woocommerce/plugin-woocommerce run test:unit`;
 		},
 	},
 	{
@@ -332,9 +343,10 @@ const operations = [
 	{
 		name: 'tail-errors',
 		run: async ({ branch }) => {
-			const siteName = simplifyToPath(
-				branch || (await getCurrentBranch())
-			);
+			const siteName = process.cwd().includes(PATH_FOR_WP)
+				? siteNameFromWP()
+				: simplifyToPath(branch || (await getCurrentBranch()));
+
 			await $`tail -n0 -f "${PATH_FOR_WP}/${siteName}/wp-content/debug.log"`;
 		},
 	},
