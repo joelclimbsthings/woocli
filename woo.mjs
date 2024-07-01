@@ -378,7 +378,9 @@ const operations = [
 				? siteNameFromWP()
 				: simplifyToPath(branch || (await getCurrentBranch()));
 
-			await $`tail -n0 -f "${PATH_FOR_WP}/${siteName}/wp-content/debug.log"`;
+			cd(`${PATH_FOR_WP}/${siteName}`);
+
+			await $`ddev exec tail -n0 -f /var/www/html/wp-content/debug.log`;
 		},
 	},
 ].map((item, index) => ({
