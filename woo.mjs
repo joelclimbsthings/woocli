@@ -4,7 +4,7 @@ import 'zx/globals';
 import prompts from 'prompts';
 import { chalk, quiet } from 'zx';
 import { createLogger } from './util/createLogger.mjs';
-import { getComposeTemplate } from './util/getComposeTemplate.mjs';
+import YAML from 'yaml';
 
 const logger = createLogger('wooCli');
 
@@ -43,9 +43,7 @@ const siteNameFromWP = () => {
 const operations = [
 	{
 		name: 'site',
-		run: async ({ blueprint, siteName }) => {
-			const sitePath = `${PATH_FOR_WP}/${siteName}`;
-
+		run: async ({ blueprint, siteName, sitePath }) => {
 			await $`cp -r ${PATH_FOR_BLUEPRINTS}/${blueprint} ${sitePath}`;
 
 			cd(sitePath);
@@ -74,7 +72,12 @@ const operations = [
 			return {
 				blueprint,
 				siteName,
+				sitePath: `${PATH_FOR_WP}/${siteName}`,
 			};
+		},
+		afterAll: async ({ sitePath }) => {
+			cd(sitePath);
+			await $`ddev launch wp-admin`;
 		},
 		args: ['s'],
 	},
@@ -160,13 +163,41 @@ const operations = [
 	{
 		name: 'linkbasic',
 		run: async ({ siteName, clonePath = process.cwd() }) => {
-			await quiet(
-				$`echo ${getComposeTemplate(
-					clonePath
-				)} > "${PATH_FOR_WP}/${siteName}/.ddev/docker-compose.mounts.yaml"`
-			);
+			const composeFilePath = `${PATH_FOR_WP}/${siteName}/.ddev/docker-compose.mounts.yaml`;
+			let composeContent = '';
+
+			try {
+				composeContent = await fs.readFile(composeFilePath, 'utf8');
+			} catch (err) {
+				if (err.code !== 'ENOENT') throw err; // Ignore if file does not exist
+			}
+
+			let composeData = composeContent ? YAML.parse(composeContent) : {};
+			const newVolume = `${clonePath}:/var/www/html/wp-content/plugins/${clonePath
+				.split('/')
+				.pop()}`;
+
+			if (!composeData.services) {
+				composeData.services = {};
+			}
+			if (!composeData.services.web) {
+				composeData.services.web = {};
+			}
+			if (!composeData.services.web.volumes) {
+				composeData.services.web.volumes = [];
+			}
+
+			if (!composeData.services.web.volumes.includes(newVolume)) {
+				composeData.services.web.volumes.push(newVolume);
+			} else {
+				logger.info(`Already exists -> ${newVolume}`);
+			}
+
+			const newComposeContent = YAML.stringify(composeData);
+			await fs.outputFile(composeFilePath, newComposeContent);
 
 			cd(`${PATH_FOR_WP}/${siteName}`);
+
 			await $`ddev restart`;
 		},
 		prep: async () => operations.get('link').prep(),
@@ -231,11 +262,11 @@ const operations = [
 		name: 'watch',
 		run: async ({
 			clonePath = process.cwd(),
-			target = argv['target'] || 'woocommerce/client/admin',
+			target = argv['target'] || '@woocommerce/plugin-woocommerce',
 		}) => {
 			cd(clonePath);
 
-			await $`pnpm --filter=${target} run start`;
+			await $`pnpm --filter='${target}' watch:build`;
 		},
 		args: ['w'],
 	},
@@ -398,14 +429,23 @@ for (const op of orderedToRun) {
 	}
 }
 
+const afterAllHandlers = [];
+
 for (const op of orderedToRun) {
 	try {
 		console.time(op.name);
 		await op.run(config);
 		op.after(config);
 		console.timeEnd(op.name);
+		if (op.afterAll) {
+			afterAllHandlers.push(op.afterAll);
+		}
 	} catch (e) {
 		logger.warn(chalk.red(`Unable to run operation ${op.name}`, e.message));
 		break;
 	}
+}
+
+for (const handler of afterAllHandlers) {
+	await handler(config);
 }

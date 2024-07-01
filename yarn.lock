@@ -2243,10 +2243,10 @@
   "resolved" "https://registry.npmjs.org/from/-/from-0.1.7.tgz"
   "version" "0.1.7"
 
-"fs-extra@^11.1.1":
-  "integrity" "sha512-MGIE4HOvQCeUCzmlHs0vXpih4ysz4wg9qiSAu6cd42lVwPbTM1TjV7RusoyQqMmk/95gdQZX72u+YW+c3eEpFQ=="
-  "resolved" "https://registry.npmjs.org/fs-extra/-/fs-extra-11.1.1.tgz"
-  "version" "11.1.1"
+"fs-extra@^11.1.1", "fs-extra@^11.2.0":
+  "integrity" "sha512-PmDi3uwK5nFuXh7XDTlVnS17xJS7vW36is2+w3xcv8SVxiB4NyATf4ctkVY5bkSjX0Y4nbvZCq1/EjtEyr9ktw=="
+  "resolved" "https://registry.npmjs.org/fs-extra/-/fs-extra-11.2.0.tgz"
+  "version" "11.2.0"
   dependencies:
     "graceful-fs" "^4.2.0"
     "jsonfile" "^6.0.1"
@@ -3989,10 +3989,10 @@
   "resolved" "https://registry.npmjs.org/yaml/-/yaml-1.10.2.tgz"
   "version" "1.10.2"
 
-"yaml@^2.2.2":
-  "integrity" "sha512-CBKFWExMn46Foo4cldiChEzn7S7SRV+wqiluAb6xmueD/fGyRHIhX8m14vVGgeFWjN540nKCNVj6P21eQjgTuA=="
-  "resolved" "https://registry.npmjs.org/yaml/-/yaml-2.2.2.tgz"
-  "version" "2.2.2"
+"yaml@^2.2.2", "yaml@^2.4.5":
+  "integrity" "sha512-aBx2bnqDzVOyNKfsysjA2ms5ZlnjSAW2eG3/L5G/CSujfjLJTJsEw1bGw8kCf04KodQWk1pxlGnZ56CRxiawmg=="
+  "resolved" "https://registry.npmjs.org/yaml/-/yaml-2.4.5.tgz"
+  "version" "2.4.5"
 
 "yargs-parser@^20.2.3":
   "integrity" "sha512-y11nGElTIV+CT3Zv9t7VKl+Q3hTQoT9a1Qzezhhl6Rp21gJ/IVTW7Z3y9EWXhuUBC2Shnf+DX0antecpAwSP8w=="
