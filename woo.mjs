@@ -161,7 +161,7 @@ const operations = [
 		args: ['b'],
 	},
 	{
-		name: 'linkbasic',
+		name: 'link-plugin',
 		run: async ({ siteName, clonePath = process.cwd() }) => {
 			const composeFilePath = `${PATH_FOR_WP}/${siteName}/.ddev/docker-compose.mounts.yaml`;
 			let composeContent = '';
@@ -208,7 +208,7 @@ const operations = [
 		run: async ({ branch, siteName, clonePath = process.cwd() }) => {
 			const wooPath = `${clonePath}/plugins/woocommerce/woocommerce.php`;
 
-			const linkOp = operations.get('linkbasic');
+			const linkOp = operations.get('link-plugin');
 
 			linkOp.run({
 				siteName,
