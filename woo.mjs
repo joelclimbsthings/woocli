@@ -243,7 +243,7 @@ const operations = [
 							type: 'text',
 							name: 'site',
 							initial: 'trunk',
-							message: 'What would you like to call your site?',
+							message: 'What is the directory name of your site?',
 						})
 				  ).site;
 
