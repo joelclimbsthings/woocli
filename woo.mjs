@@ -5,15 +5,25 @@ import prompts from 'prompts';
 import { chalk, quiet } from 'zx';
 import { createLogger } from './util/createLogger.mjs';
 import YAML from 'yaml';
+import path from 'path';
 
 const logger = createLogger('wooCli');
 
 process.env.FORCE_COLOR = '1';
 
 const PATH_FOR_WP = `${os.homedir()}/sites/wp`;
-const PATH_FOR_WOOMONO = `${os.homedir()}/sites/woomono`;
 const PATH_FOR_BLUEPRINTS = `${os.homedir()}/sites/blueprints`;
 const DEFAULT_BLUEPRINT = `blueprint-WP-65`;
+
+const getExternalReposPath = (siteName) =>
+	`${PATH_FOR_WP}/${siteName}/external_repos`;
+const getWooCommercePath = (siteName) =>
+	`${getExternalReposPath(siteName)}/woocommerce`;
+const getPluginsPath = (siteName) =>
+	`${PATH_FOR_WP}/${siteName}/wp-content/plugins`;
+
+const getWooPluginPath = (siteName) =>
+	`${getWooCommercePath(siteName)}/plugins/woocommerce`;
 
 const simplifyToPath = (branch) => {
 	return branch
@@ -21,10 +31,6 @@ const simplifyToPath = (branch) => {
 		.replace('_', '-')
 		.replace(/[^a-z0-9-]/gi, '');
 };
-
-const parsePathsFromBranch = (branch) => ({
-	clonePath: `${PATH_FOR_WOOMONO}/${simplifyToPath(branch)}`,
-});
 
 const getCurrentBranch = async () => {
 	return String(await quiet($`git branch --show-current`)).trim();
@@ -40,6 +46,24 @@ const siteNameFromWP = () => {
 	return cwdParts[siteNameIndex];
 };
 
+// Helper to get siteName from branch, current directory, or arguments
+const getSiteName = async () => {
+	return argv['branch']
+		? simplifyToPath(argv['branch'])
+		: argv['site-name']
+		? simplifyToPath(argv['site-name'])
+		: siteNameFromWP()
+		? siteNameFromWP()
+		: (
+				await prompts({
+					type: 'text',
+					name: 'site',
+					initial: 'trunk',
+					message: 'What is the directory name of your site?',
+				})
+		  ).site;
+};
+
 const operations = [
 	{
 		name: 'site',
@@ -48,26 +72,19 @@ const operations = [
 
 			cd(sitePath);
 
-			await $`ddev config --project-name=${siteName}`;
+			// Create external_repos directory
+			await $`mkdir -p ${getExternalReposPath(siteName)}`;
+
 			await $`ddev import-db --file=db_export.sql.gz`;
+			await $`ddev stop --unlist ${blueprint}`;
+			await $`ddev config --project-name=${siteName}`;
 		},
 		prep: async () => {
 			const blueprint = argv['blueprint']
 				? argv['blueprint']
 				: DEFAULT_BLUEPRINT;
 
-			const siteName = argv['site-name']
-				? simplifyToPath(argv['site-name'])
-				: argv['branch']
-				? simplifyToPath(argv['branch'])
-				: (
-						await prompts({
-							type: 'text',
-							name: 'site',
-							initial: 'trunk',
-							message: 'What would you like to call your site?',
-						})
-				  ).site;
+			const siteName = await getSiteName();
 
 			return {
 				blueprint,
@@ -83,8 +100,10 @@ const operations = [
 	},
 	{
 		name: 'clone',
-		run: async ({ branch, clonePath }) =>
-			await $`git clone -b ${branch} git@github.com:woocommerce/woocommerce.git ${clonePath}`,
+		run: async ({ branch, siteName }) => {
+			const clonePath = getWooCommercePath(siteName);
+			await $`git clone -b ${branch} git@github.com:woocommerce/woocommerce.git ${clonePath}`;
+		},
 		prep: async () => {
 			const branch = argv['branch']
 				? argv['branch']
@@ -97,15 +116,18 @@ const operations = [
 						})
 				  ).branch;
 
+			const siteName = await getSiteName();
+
 			return {
 				branch,
-				...parsePathsFromBranch(branch),
+				siteName,
 			};
 		},
 	},
 	{
 		name: 'create',
-		run: async ({ branch, clonePath }) => {
+		run: async ({ branch, siteName }) => {
+			const clonePath = getWooCommercePath(siteName);
 			await $`git clone -b ${
 				argv['base'] || 'trunk'
 			} git@github.com:woocommerce/woocommerce.git ${clonePath}`;
@@ -126,39 +148,48 @@ const operations = [
 						})
 				  ).branch;
 
+			const siteName = await getSiteName();
+
 			return {
 				branch,
-				...parsePathsFromBranch(branch),
+				siteName,
 			};
 		},
 	},
 	{
 		name: 'clean',
-		run: async ({ clonePath = process.cwd() }) => {
-			cd(clonePath);
-
+		run: async ({ siteName }) => {
+			cd(getWooCommercePath(siteName));
 			await $`pnpm run clean`;
 		},
+		prep: async () => ({
+			siteName: await getSiteName(),
+		}),
 	},
 	{
 		name: 'install',
-		run: async ({ clonePath = process.cwd() }) => {
-			cd(clonePath);
+		run: async ({ siteName }) => {
+			cd(getWooCommercePath(siteName));
 			await $`pnpm install`;
 		},
 		args: ['i'],
+		prep: async () => ({
+			siteName: await getSiteName(),
+		}),
 	},
 	{
 		name: 'build',
 		run: async ({
-			clonePath = process.cwd(),
+			siteName,
 			target = argv['target'] || '@woocommerce/plugin-woocommerce',
 		}) => {
-			cd(clonePath);
-
+			cd(getWooCommercePath(siteName));
 			await $`pnpm --filter=${target} run build`;
 		},
 		args: ['b'],
+		prep: async () => ({
+			siteName: await getSiteName(),
+		}),
 	},
 	{
 		name: 'link-plugin',
@@ -200,57 +231,30 @@ const operations = [
 
 			await $`ddev restart`;
 		},
-		prep: async () => operations.get('link').prep(),
-		after: ({ siteName }) => operations.get('link').after({ siteName }),
+		prep: async () => ({
+			siteName: await getSiteName(),
+		}),
+		after: ({ siteName }) =>
+			logger.info(
+				`${chalk.green(
+					'Successfully linked plugin to site'
+				)} ${chalk.bold(siteName)}`
+			),
 	},
 	{
-		name: 'link',
-		run: async ({ branch, siteName, clonePath = process.cwd() }) => {
-			const wooPath = `${clonePath}/plugins/woocommerce/woocommerce.php`;
-
+		name: 'link-docker',
+		run: async ({ siteName }) => {
 			const linkOp = operations.get('link-plugin');
 
-			linkOp.run({
+			await linkOp.run({
 				siteName,
-				clonePath: `${clonePath}/plugins/woocommerce`,
+				clonePath: getWooPluginPath(siteName),
 			});
-
-			if (!branch) {
-				branch = await getCurrentBranch();
-			}
-
-			const branchTitle = branch.replace('/', '-');
-
-			if (
-				(await quiet(nothrow($`grep -Fq "${branchTitle}" ${wooPath}`))
-					.exitCode) === 0
-			) {
-				return;
-			}
-
-			await quiet(
-				$`sed -i 's/Plugin Name: WooCommerce/Plugin Name: WooCommerce (${branchTitle})/g' ${clonePath}/plugins/woocommerce/woocommerce.php`
-			);
 		},
-		args: ['l'],
-		prep: async () => {
-			const siteName = argv['branch']
-				? simplifyToPath(argv['branch'])
-				: argv['site-name']
-				? simplifyToPath(argv['site-name'])
-				: (
-						await prompts({
-							type: 'text',
-							name: 'site',
-							initial: 'trunk',
-							message: 'What is the directory name of your site?',
-						})
-				  ).site;
-
-			return {
-				siteName,
-			};
-		},
+		args: ['ld'],
+		prep: async () => ({
+			siteName: await getSiteName(),
+		}),
 		after: ({ siteName }) =>
 			logger.info(
 				`${chalk.green('Successfully linked to site')} ${chalk.bold(
@@ -259,27 +263,69 @@ const operations = [
 			),
 	},
 	{
+		name: 'link',
+		run: async ({ siteName }) => {
+			// Store the original plugin directory path
+			const pluginPath = process.cwd();
+			const pluginName = pluginPath.split('/').pop();
+			const pluginsPath = getPluginsPath(siteName);
+			const targetPath = `${pluginsPath}/${pluginName}`;
+
+			// Ensure the plugins directory exists
+			await $`mkdir -p ${pluginsPath}`;
+
+			// Remove existing symlink if it exists
+			await quiet(nothrow($`rm -f ${targetPath}`));
+
+			// Create relative symlink from the plugins directory to original plugin directory
+			cd(pluginsPath);
+			const relativePath = path.relative(pluginsPath, pluginPath);
+			await $`ln -s ${relativePath} ${pluginName}`;
+
+			logger.info(`Linked ${pluginName} to ${targetPath}`);
+		},
+		args: ['l'],
+		prep: async () => ({
+			siteName: await getSiteName(),
+		}),
+		after: ({ siteName }) => {
+			const pluginName = process.cwd().split('/').pop();
+			logger.info(
+				`${chalk.green('Successfully linked')} ${chalk.bold(
+					pluginName
+				)} ${chalk.green('to site')} ${chalk.bold(siteName)}`
+			);
+		},
+	},
+	{
 		name: 'watch',
 		run: async ({
-			clonePath = process.cwd(),
+			siteName,
 			target = argv['target'] || '@woocommerce/plugin-woocommerce',
 		}) => {
-			cd(clonePath);
-
+			cd(getWooCommercePath(siteName));
 			await $`pnpm --filter='${target}' watch:build`;
 		},
 		args: ['w'],
+		prep: async () => ({
+			siteName: await getSiteName(),
+		}),
 	},
 	{
 		name: 'changelog',
-		run: async ({ clonePath = process.cwd() }) => {
-			cd(`${clonePath}/plugins/woocommerce`);
+		run: async ({ siteName }) => {
+			cd(getWooPluginPath(siteName));
 			await $`./vendor/bin/changelogger add`;
 		},
+		prep: async () => ({
+			siteName: await getSiteName(),
+		}),
 	},
 	{
 		name: 'push',
-		run: async () => {
+		run: async ({ siteName }) => {
+			cd(getWooCommercePath(siteName));
+
 			const conditionalPop = async () => {
 				if (argv['pop']) {
 					await quiet($`git stash pop`);
@@ -301,27 +347,43 @@ const operations = [
 
 			await conditionalPop();
 		},
+		prep: async () => ({
+			siteName: await getSiteName(),
+		}),
 	},
 	{
 		name: 'test:js',
-		run: async ({ path = argv['path'] || '' }) =>
-			await $`pnpm --filter=woocommerce/client/admin run test:client ${path}`,
+		run: async ({ siteName, path = argv['path'] || '' }) => {
+			cd(getWooCommercePath(siteName));
+			await $`pnpm --filter=woocommerce/client/admin run test:client ${path}`;
+		},
+		prep: async () => ({
+			siteName: await getSiteName(),
+		}),
 	},
 	{
 		name: 'test:js:watch',
-		run: async ({ path = argv['path'] || '' }) =>
-			await $`pnpm --filter=woocommerce/client/admin test:client ${path} --watch`,
+		run: async ({ siteName, path = argv['path'] || '' }) => {
+			cd(getWooCommercePath(siteName));
+			await $`pnpm --filter=woocommerce/client/admin test:client ${path} --watch`;
+		},
+		prep: async () => ({
+			siteName: await getSiteName(),
+		}),
 	},
 	{
 		name: 'test:php:prepare',
-		run: async ({ clonePath = process.cwd() }) => {
-			cd(clonePath);
+		run: async ({ siteName }) => {
+			cd(getWooCommercePath(siteName));
 			await quiet(nothrow($`rm -rf /tmp/wordpress-tests-lib`));
 
 			await $`docker run --rm --name woocommerce_test_db -p 3307:3306 -e MYSQL_ROOT_PASSWORD=woocommerce_test_password -d mysql:5.7.33`;
 			await quiet($`sleep 5`);
 			await $`./plugins/woocommerce/tests/bin/install.sh woocommerce_tests root woocommerce_test_password 0.0.0.0:3307`;
 		},
+		prep: async () => ({
+			siteName: await getSiteName(),
+		}),
 		_isReady: async () => {
 			return quiet($`docker ps`).then((result) =>
 				Boolean(~result.stdout.indexOf('woocommerce_test_db'))
@@ -373,15 +435,13 @@ const operations = [
 	},
 	{
 		name: 'tail-errors',
-		run: async ({ branch }) => {
-			const siteName = process.cwd().includes(PATH_FOR_WP)
-				? siteNameFromWP()
-				: simplifyToPath(branch || (await getCurrentBranch()));
-
+		run: async ({ siteName }) => {
 			cd(`${PATH_FOR_WP}/${siteName}`);
-
 			await $`ddev exec tail -n0 -f /var/www/html/wp-content/debug.log`;
 		},
+		prep: async () => ({
+			siteName: await getSiteName(),
+		}),
 	},
 ].map((item, index) => ({
 	...item,
